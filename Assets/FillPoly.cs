@@ -47,7 +47,7 @@ public class FillPoly : MonoBehaviour {
         var farOrderedIndices = loopSequence.Select((pos, i) => (pos.sqrMagnitude, i)).OrderByDescending(tuple => tuple.sqrMagnitude).Select(tuple => tuple.i).ToList();
         var removedIndices = new bool[loopSequence.Count];
         
-        for (int i = 0; i < farOrderedIndices.Count-2; i++) {
+        for (var i = 0; i < farOrderedIndices.Count-2; i++) {
             var id = farOrderedIndices[i];
             var prev = (id-1);
             if (prev < 0) prev = loopSequence.Count-1;
@@ -57,6 +57,7 @@ public class FillPoly : MonoBehaviour {
             }
             var next = (id + 1) % loopSequence.Count;
             while (removedIndices[next]) next = (next+1) % loopSequence.Count;
+            var isIllegal = CheckContainingOtherPoints((next, id, prev), loopSequence);
             indices.Add(next);
             indices.Add(id);
             indices.Add(prev);
@@ -108,7 +109,26 @@ public class FillPoly : MonoBehaviour {
         return loopSequence;
     }
 
-    void AddOrDefault(Dictionary<Vector3, List<object>> dict, Vector3 key, object value) {
+    private bool CheckContainingOtherPoints((int,int,int) triangleIndex, List<Vector3> vertices) {
+        var p0 = vertices[triangleIndex.Item1];
+        var p1 = vertices[triangleIndex.Item2];
+        var p2 = vertices[triangleIndex.Item3];
+        return vertices.Where((t, i) => i != triangleIndex.Item1 && i != triangleIndex.Item2 && i != triangleIndex.Item3).Select(t => CheckContainingPoint(t, p0, p1, p2)).Any(isContaining => isContaining);
+    }
+
+    private bool CheckContainingPoint(Vector3 target, Vector3 p0, Vector3 p1, Vector3 p2) {
+        var v0 = (p1 - p0);
+        var v1 = (p2 - p1);
+        var v2 = (p0 - p2);
+        
+        var standard = Vector3.Cross(target-p1, v0);
+        var c0 = Vector3.Cross(target-p2, v1);
+        if (Vector3.Dot(standard, c0) < 0) return true;
+        var c1 = Vector3.Cross(target-p0, v2);
+        return Vector3.Dot(standard, c1) < 0;
+    }
+
+    private void AddOrDefault(IDictionary<Vector3, List<object>> dict, Vector3 key, object value) {
         var already = dict.TryGetValue(key, out var result);
         if (!already) {
             dict[key] = new List<object>{value};
